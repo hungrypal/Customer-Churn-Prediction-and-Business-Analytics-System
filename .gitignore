@@ -1,0 +1,6 @@
+xvenv/
+__pycache__/
+*.pyc
+.env
+*.pkl
+data/
