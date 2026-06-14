@@ -3,12 +3,9 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from pathlib import Path
 from backend.config import DATA_DIR, TABLEAU_CONFIG
 from backend.predictions import ChurnPredictor
 from backend.database import DatabaseManager
-from datetime import datetime
-import json
 
 import joblib
 import os
@@ -28,6 +25,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
 
 # Custom CSS
 st.markdown("""
@@ -121,8 +119,83 @@ if menu == "🏠 Home":
         st.metric("Model Accuracy", "94.2%")
 
     with col4:
-        st.metric("Predictions Today", "0")
+
+        prediction_count = 0
+        prediction_file = DATA_DIR / "user_predictions.csv"
+
+        if prediction_file.exists():
+
+            try:
+                prediction_df = pd.read_csv(prediction_file)
+
+                prediction_df["timestamp"] = pd.to_datetime(
+                    prediction_df["timestamp"]
+                )
+
+                today = pd.Timestamp.now().date()
+
+                prediction_count = len(
+                    prediction_df[
+                        prediction_df["timestamp"].dt.date == today
+                    ]
+                )
+
+            except Exception as e:
+                st.error(str(e))
+
+        st.metric(
+            "Predictions Today",
+            prediction_count
+        )
+
+
+
+    # with col4:
+
+    #     prediction_file = DATA_DIR / "user_predictions.csv"
+
+    #     prediction_count = 0
+
+    #     if prediction_file.exists():
+
+    #         try:
+    #             prediction_df = pd.read_csv(prediction_file)
+
+    #             prediction_count = len(prediction_df)
+
+    #         except Exception as e:
+    #             st.error(str(e))
+
+    # st.metric(
+    #     "Predictions Today",
+    #     prediction_count
+    # )
+
+
     st.markdown("---")
+
+    st.markdown("### 📋 Recent Predictions")
+    prediction_file = DATA_DIR / "user_predictions.csv"
+    if prediction_file.exists():
+
+        recent_df = pd.read_csv(prediction_file)
+
+        recent_df["timestamp"] = pd.to_datetime(
+            recent_df["timestamp"]
+        )
+
+        recent_df = recent_df.sort_values(
+            "timestamp",
+            ascending=False
+        )
+
+        st.dataframe(
+            recent_df.head(10),
+            use_container_width=True
+        )
+    else:
+        st.info("No predictions made yet.")
+
     
     # Features
     st.markdown("### 🔑 Key Features")
@@ -184,3 +257,4 @@ elif menu == "🔮 Prediction":
 
 elif menu == "📈 Analytics":
     st.markdown("### Analytics Page - Coming Soon")
+

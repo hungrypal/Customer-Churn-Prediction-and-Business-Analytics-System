@@ -1,12 +1,24 @@
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 import pandas as pd
 import numpy as np
 import joblib
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+MODELS_DIR = BASE_DIR / "ml_model"
+
+DATA_DIR.mkdir(exist_ok=True)
+MODELS_DIR.mkdir(exist_ok=True)
 
 # ===============================
 # 1. LOAD DATA
 # ===============================
 
-df = pd.read_csv("data/churn_data.csv")
+df = pd.read_csv(DATA_DIR / "churn_data.csv")
 
 print("Columns:")
 print(df.columns)
@@ -48,12 +60,52 @@ df["Churn"] = df["Churn"].map({"Yes": 1, "No": 0})
 # Remove ID column
 df_model = df.drop("customerID", axis=1)
 
-# One-hot encoding for categorical columns
-df_model = pd.get_dummies(df_model, drop_first=True)
+
 
 # Separate features and labels
 X = df_model.drop("Churn", axis=1)
 y = df_model["Churn"]
+
+categorical_features = [
+    "gender",
+    "Partner",
+    "Dependents",
+    "PhoneService",
+    "MultipleLines",
+    "InternetService",
+    "OnlineSecurity",
+    "OnlineBackup",
+    "DeviceProtection",
+    "TechSupport",
+    "StreamingTV",
+    "StreamingMovies",
+    "Contract",
+    "PaperlessBilling",
+    "PaymentMethod"
+]
+
+numeric_features = [
+    "SeniorCitizen",
+    "tenure",
+    "MonthlyCharges",
+    "TotalCharges"
+]
+
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        (
+            "num",
+            StandardScaler(),
+            numeric_features
+        ),
+        (
+            "cat",
+            OneHotEncoder(handle_unknown="ignore"),
+            categorical_features
+        )
+    ]
+)
 
 
 # ===============================
@@ -78,12 +130,12 @@ print("Testing size:", X_test.shape)
 # 5. FEATURE SCALING
 # ===============================
 
-from sklearn.preprocessing import StandardScaler
+# from sklearn.preprocessing import StandardScaler
 
-scaler = StandardScaler()
+# scaler = StandardScaler()
 
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
+# X_train_scaled = scaler.fit_transform(X_train)
+# X_test_scaled = scaler.transform(X_test)
 
 
 # ===============================
@@ -94,23 +146,36 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 
 # Logistic Regression
-log_model = LogisticRegression(
-    class_weight="balanced",
-    max_iter=2000
-)
+log_pipeline = Pipeline([
+    ("preprocessor", preprocessor),
+    (
+        "classifier",
+        LogisticRegression(
+            class_weight="balanced",
+            max_iter=2000
+        )
+    )
+])
 
-log_model.fit(X_train_scaled, y_train)
+log_pipeline.fit(X_train, y_train)
 
 # Random Forest
-rf_model = RandomForestClassifier(
-    n_estimators=300,
-    max_depth=10,
-    random_state=42,
-    class_weight="balanced",
-    n_jobs=-1
-)
 
-rf_model.fit(X_train, y_train)
+rf_pipeline = Pipeline([
+    ("preprocessor", preprocessor),
+    (
+        "classifier",
+        RandomForestClassifier(
+            n_estimators=300,
+            max_depth=10,
+            random_state=42,
+            class_weight="balanced",
+            n_jobs=-1
+        )
+    )
+])
+
+rf_pipeline.fit(X_train, y_train)
 
 
 # ===============================
@@ -118,11 +183,11 @@ rf_model.fit(X_train, y_train)
 # ===============================
 
 # Logistic predictions
-log_prob = log_model.predict_proba(X_test_scaled)[:, 1]
+log_prob = log_pipeline.predict_proba(X_test)[:, 1]
 log_pred = (log_prob > 0.4).astype(int)
 
 # Random forest predictions
-rf_prob = rf_model.predict_proba(X_test)[:, 1]
+rf_prob = rf_pipeline.predict_proba(X_test)[:, 1]
 rf_pred = (rf_prob > 0.4).astype(int)
 
 
@@ -166,20 +231,20 @@ print(classification_report(y_test, rf_pred))
 # 9. FEATURE IMPORTANCE
 # ===============================
 
-feature_importance = pd.DataFrame({
-    "Feature": X.columns,
-    "Importance": rf_model.feature_importances_
-})
+# feature_importance = pd.DataFrame({
+#     "Feature": X.columns,
+#     "Importance": rf_model.feature_importances_
+# })
 
-feature_importance = feature_importance.sort_values(
-    by="Importance",
-    ascending=False
-)
+# feature_importance = feature_importance.sort_values(
+#     by="Importance",
+#     ascending=False
+# )
 
-print("\nTop Important Features:")
-print(feature_importance.head(10))
+# print("\nTop Important Features:")
+# print(feature_importance.head(10))
 
-feature_importance.to_csv("data/feature_importance.csv", index=False)
+# feature_importance.to_csv(DATA_DIR / "feature_importance.csv", index=False)
 
 
 # ===============================
@@ -202,7 +267,7 @@ model_comparison = pd.DataFrame({
     ]
 })
 
-model_comparison.to_csv("data/model_comparison.csv", index=False)
+model_comparison.to_csv(DATA_DIR / "model_comparison.csv", index=False)
 
 
 # ===============================
@@ -217,7 +282,7 @@ cm_log_tableau = pd.DataFrame({
     "Count": cm_log.flatten()
 })
 
-cm_log_tableau.to_csv("data/cm_logistic_tableau.csv", index=False)
+cm_log_tableau.to_csv(DATA_DIR / "cm_logistic_tableau.csv", index=False)
 
 
 cm_rf = confusion_matrix(y_test, rf_pred)
@@ -228,7 +293,7 @@ cm_rf_tableau = pd.DataFrame({
     "Count": cm_rf.flatten()
 })
 
-cm_rf_tableau.to_csv("data/cm_rf_tableau.csv", index=False)
+cm_rf_tableau.to_csv(DATA_DIR / "cm_rf_tableau.csv", index=False)
 
 
 # ===============================
@@ -260,7 +325,7 @@ results["Risk_Level"] = results["Churn_Probability"].apply(risk_segment)
 results["RF_Predicted_Churn"] = rf_pred
 results["RF_Churn_Probability"] = rf_prob
 
-results.to_csv("data/final_predictions.csv", index=False)
+results.to_csv(DATA_DIR / "final_predictions.csv", index=False)
 
 print("\nFinal prediction file saved successfully.")
 
@@ -269,9 +334,16 @@ print("\nFinal prediction file saved successfully.")
 # 14. SAVE MODELS
 # ===============================
 
-joblib.dump(log_model, "ml_model/logistic_model.pkl")
-joblib.dump(rf_model, "ml_model/random_forest_model.pkl")
-joblib.dump(scaler, "ml_model/scaler.pkl")
-joblib.dump(X.columns.tolist(), "ml_model/model_features.pkl")
+joblib.dump(
+    log_pipeline,
+    MODELS_DIR / "logistic_pipeline.pkl"
+)
+
+joblib.dump(
+    rf_pipeline,
+    MODELS_DIR / "random_forest_pipeline.pkl"
+)
+
+print("Pipeline models saved successfully")
 
 print("\nModels saved successfully.")

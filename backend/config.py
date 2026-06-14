@@ -7,6 +7,8 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 MODELS_DIR = BASE_DIR / "ml_model"
+DATA_DIR.mkdir(exist_ok=True)
+MODELS_DIR.mkdir(exist_ok=True)
 
 # -----------------------------
 # Database Configuration
@@ -28,5 +30,5 @@ TABLEAU_CONFIG = {
 # -----------------------------
 # Model Paths
 # -----------------------------
-LOGISTIC_MODEL_PATH = MODELS_DIR / "logistic_model.pkl"
-RANDOM_FOREST_MODEL_PATH = MODELS_DIR / "random_forest_model.pkl"
+LOGISTIC_MODEL_PATH = MODELS_DIR / "logistic_pipeline.pkl"
+RANDOM_FOREST_MODEL_PATH = MODELS_DIR / "random_forest_pipeline.pkl"

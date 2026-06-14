@@ -1,4 +1,4 @@
-#!/Users/rohitkumarjangid/Customer_Churn_Project/venv/bin/python3
+#!/Users/jangid/Customer-Churn-Prediction-and-Business-Analytics-System/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

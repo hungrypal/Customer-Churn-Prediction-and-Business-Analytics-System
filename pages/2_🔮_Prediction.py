@@ -44,7 +44,7 @@ with col1:
             )
             payment_method = st.selectbox(
                 "Payment Method",
-                ["Electronic check", "Mailed check", "Bank transfer", "Credit card"]
+                ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"]
             )
             internet_service = st.selectbox(
                 "Internet Service",
@@ -84,6 +84,32 @@ with col1:
                     # Display result
                     st.session_state.last_prediction = result
                     st.session_state.last_prediction_features = features
+
+
+                    # Save user prediction
+                    prediction_record = pd.DataFrame([{
+                        "customer_id": customer_id,
+                        "model_used": model_type,
+                        "prediction": result["prediction"],
+                        "probability": result["probability"],
+                        "risk_level": result["churn_risk"],
+                        "timestamp": datetime.now()
+                    }])
+
+                    prediction_file = DATA_DIR / "user_predictions.csv"
+
+                    if prediction_file.exists():
+                        prediction_record.to_csv(
+                            prediction_file,
+                            mode="a",
+                            header=False,
+                            index=False
+                        )
+                    else:
+                        prediction_record.to_csv(
+                            prediction_file,
+                            index=False
+                        )
                     
                     # Save to database (optional)
                     # st.session_state.db.log_prediction(
@@ -91,6 +117,12 @@ with col1:
                     #     result['prediction'], result['probability'],
                     #     features
                     # )
+
+                
+            
+            
+
+                
 
 with col2:
     if 'last_prediction' in st.session_state:
@@ -140,7 +172,18 @@ with col2:
 st.markdown("---")
 st.markdown("### 📋 Recent Predictions")
 
+prediction_file = DATA_DIR / "user_predictions.csv"
+
+if prediction_file.exists():
+    predictions_df = pd.read_csv(prediction_file)
+
+    st.dataframe(
+        predictions_df.tail(10),
+        use_container_width=True
+    )
+
 # You can load from database or CSV
-if (DATA_DIR / "final_predictions.csv").exists():
-    predictions_df = pd.read_csv(DATA_DIR / "final_predictions.csv")
-    st.dataframe(predictions_df.head(10), use_container_width=True)
+# if (DATA_DIR / "final_predictions.csv").exists():
+#     predictions_df = pd.read_csv(DATA_DIR / "final_predictions.csv")
+    # st.dataframe(predictions_df.head(10), use_container_width=True)
+

@@ -15,10 +15,10 @@ class DatabaseManager:
         """Create database connection"""
         try:
             self.connection = mysql.connector.connect(
-                host=DB_CONFIG['localhost'],
-                user=DB_CONFIG['root'],
-                password=DB_CONFIG['015Rohit@'],
-                database=DB_CONFIG['churn_project']
+                host=DB_CONFIG['host'],
+                user=DB_CONFIG['user'],
+                password=DB_CONFIG['password'],
+                database=DB_CONFIG['database']
             )
             if self.connection.is_connected():
                 print("Connected to MySQL database")
