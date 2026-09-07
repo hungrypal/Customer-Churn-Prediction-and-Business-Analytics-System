@@ -3,9 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from backend.predictions import ChurnPredictor
 from backend.database import DatabaseManager
-from backend.config import DATA_DIR
-from datetime import datetime
-import json
+from mysql.connector import Error as MySQLError
 
 st.set_page_config(
     page_title="Prediction - Churn Prediction",
@@ -111,44 +109,17 @@ with col1:
                     st.session_state.last_prediction_features = features
 
 
-                    # Save user prediction
-                    prediction_record = pd.DataFrame([{
-                        "customer_id": customer_id,
-                        "model_used": model_type,
-                        "prediction": result["prediction"],
-                        "probability": result["probability"],
-                        "risk_level": result["churn_risk"],
-                        "timestamp": datetime.now(),
-                        "features": json.dumps(features),
-                    }])
-
-                    prediction_file = DATA_DIR / "user_predictions.csv"
-
-                    if prediction_file.exists():
-                        existing_predictions = pd.read_csv(prediction_file)
-                        # Upgrade the legacy six-column history without losing
-                        # prior rows, then retain the full 19-feature request.
-                        if "features" not in existing_predictions.columns:
-                            existing_predictions["features"] = None
-                            existing_predictions.to_csv(prediction_file, index=False)
-                        prediction_record.to_csv(
-                            prediction_file,
-                            mode="a",
-                            header=False,
-                            index=False
+                    try:
+                        st.session_state.db.save_prediction(
+                            customer_id=customer_id,
+                            model_used=model_type,
+                            prediction=result["prediction"],
+                            probability=result["probability"],
+                            risk_level=result["churn_risk"],
+                            features=features,
                         )
-                    else:
-                        prediction_record.to_csv(
-                            prediction_file,
-                            index=False
-                        )
-                    
-                    # Save to database (optional)
-                    # st.session_state.db.log_prediction(
-                    #     customer_id, model_type, 
-                    #     result['prediction'], result['probability'],
-                    #     features
-                    # )
+                    except MySQLError:
+                        st.error("Prediction could not be recorded. Please try again later.")
 
                 
             
@@ -200,21 +171,22 @@ with col2:
             del st.session_state.last_prediction
             st.rerun()
 
-# Recent predictions (if using database)
 st.markdown("---")
 st.markdown("### 📋 Recent Predictions")
 
-prediction_file = DATA_DIR / "user_predictions.csv"
-
-if prediction_file.exists():
-    predictions_df = pd.read_csv(prediction_file)
-
-    st.dataframe(
-        predictions_df.tail(10),
-        use_container_width=True
+try:
+    page_size = 20
+    _, total_predictions = st.session_state.db.get_prediction_history(page_size=1)
+    total_pages = max(1, (total_predictions + page_size - 1) // page_size)
+    history_page = st.number_input(
+        "History page", min_value=1, max_value=total_pages, value=1, step=1
     )
-
-# You can load from database or CSV
-# if (DATA_DIR / "final_predictions.csv").exists():
-#     predictions_df = pd.read_csv(DATA_DIR / "final_predictions.csv")
-    # st.dataframe(predictions_df.head(10), use_container_width=True)
+    history, _ = st.session_state.db.get_prediction_history(
+        page=int(history_page), page_size=page_size
+    )
+    if history:
+        st.dataframe(pd.DataFrame(history), use_container_width=True)
+    else:
+        st.info("No predictions made yet.")
+except MySQLError:
+    st.warning("Prediction history is temporarily unavailable.")

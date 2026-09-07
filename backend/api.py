@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.predictions import ChurnPredictor
 from backend.schemas import PredictionRequest, PredictionResponse
+from backend.database import DatabaseManager
 
 
 app = FastAPI(title="Customer Churn Prediction API", version="1.0.0")
@@ -25,6 +26,13 @@ app.add_middleware(
 
 # Models are loaded once as the API process starts, not once per request.
 predictor = ChurnPredictor()
+database = DatabaseManager()
+
+
+@app.on_event("startup")
+def initialize_database():
+    """Attempt initialization without preventing a controlled API startup."""
+    database.initialize()
 
 
 @app.get("/health")
@@ -59,4 +67,18 @@ def create_prediction(
     result = predictor.predict(request.model_dump(), model_type)
     if "error" in result:
         raise HTTPException(status_code=503, detail=result["error"])
+    try:
+        database.save_prediction(
+            customer_id=None,
+            model_used=result["model_used"],
+            prediction=result["prediction"],
+            probability=result["probability"],
+            risk_level=result["churn_risk"],
+            features=request.model_dump(),
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Prediction could not be recorded. Please try again later.",
+        )
     return result

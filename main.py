@@ -142,79 +142,25 @@ if menu == "🏠 Home":
 
     with col4:
 
-        prediction_count = 0
-        prediction_file = DATA_DIR / "user_predictions.csv"
-
-        if prediction_file.exists():
-
-            try:
-                prediction_df = pd.read_csv(prediction_file)
-
-                prediction_df["timestamp"] = pd.to_datetime(
-                    prediction_df["timestamp"]
-                )
-
-                today = pd.Timestamp.now().date()
-
-                prediction_count = len(
-                    prediction_df[
-                        prediction_df["timestamp"].dt.date == today
-                    ]
-                )
-
-            except Exception as e:
-                st.error(str(e))
+        try:
+            prediction_count = st.session_state.db.count_predictions_today()
+        except Exception:
+            prediction_count = 0
 
         st.metric(
             "Predictions Today",
             prediction_count
         )
-
-
-
-    # with col4:
-
-    #     prediction_file = DATA_DIR / "user_predictions.csv"
-
-    #     prediction_count = 0
-
-    #     if prediction_file.exists():
-
-    #         try:
-    #             prediction_df = pd.read_csv(prediction_file)
-
-    #             prediction_count = len(prediction_df)
-
-    #         except Exception as e:
-    #             st.error(str(e))
-
-    # st.metric(
-    #     "Predictions Today",
-    #     prediction_count
-    # )
-
-
     st.markdown("---")
 
     st.markdown("### 📋 Recent Predictions")
-    prediction_file = DATA_DIR / "user_predictions.csv"
-    if prediction_file.exists():
-
-        recent_df = pd.read_csv(prediction_file)
-
-        recent_df["timestamp"] = pd.to_datetime(
-            recent_df["timestamp"]
-        )
-
-        recent_df = recent_df.sort_values(
-            "timestamp",
-            ascending=False
-        )
-
-        st.dataframe(
-            recent_df.head(10),
-            use_container_width=True
-        )
+    try:
+        recent_predictions, _ = st.session_state.db.get_prediction_history(page_size=10)
+    except Exception:
+        recent_predictions = []
+        st.warning("Prediction history is temporarily unavailable.")
+    if recent_predictions:
+        st.dataframe(pd.DataFrame(recent_predictions), use_container_width=True)
     else:
         st.info("No predictions made yet.")
 

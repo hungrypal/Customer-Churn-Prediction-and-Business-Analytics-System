@@ -4,6 +4,17 @@ Project Overview
 
 This project focuses on predicting customer churn using machine learning and transforming predictions into actionable business insights through a dashboard.
 
+## Prediction history database
+
+Prediction history is stored in MySQL. Copy `.env.example` to `.env` and set
+`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` in your deployment
+environment. The `predictions` table is created automatically when the app can
+connect. To migrate an existing `data/user_predictions.csv` once, run:
+
+```bash
+python scripts/migrate_prediction_history_csv.py
+```
+
 The goal is to help companies identify high-risk customers and reduce revenue loss.
 
 
@@ -33,5 +44,4 @@ Model Performance
 	•	Logistic Regression & Random Forest comparison
 	•	Evaluation using Accuracy, Precision, Recall, F1-score
 	•	Focus on Recall for churn detection
-
 
