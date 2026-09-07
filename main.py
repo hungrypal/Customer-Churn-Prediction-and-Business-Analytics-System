@@ -7,17 +7,6 @@ from backend.config import DATA_DIR, TABLEAU_CONFIG
 from backend.predictions import ChurnPredictor
 from backend.database import DatabaseManager
 
-import joblib
-import os
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-try:
-    logistic_model = joblib.load(os.path.join(BASE_DIR, "ml_model/logistic_model.pkl"))
-    rf_model = joblib.load(os.path.join(BASE_DIR, "ml_model/random_forest_model.pkl"))
-except:
-    logistic_model = None
-    rf_model = None
-
 # Page config
 st.set_page_config(
     page_title="Customer Churn Prediction",
@@ -94,15 +83,17 @@ if menu == "🏠 Home":
     df = None
     best_model_name = None
     best_model_accuracy = None
+    best_model_recall = None
+    best_model_roc_auc = None
 
     if (DATA_DIR / "churn_data.csv").exists():
         df = pd.read_csv(DATA_DIR / "churn_data.csv")
 
         total_customers = len(df)
 
-        churn_rate = 0
+        churn_rate = 0.0
         if "Churn" in df.columns:
-            churn_rate = df["Churn"].value_counts(normalize=True).get(1, 0) * 100
+            churn_rate = float((df["Churn"] == "Yes").mean() * 100)
 
     else:
         total_customers = 0
@@ -121,6 +112,10 @@ if menu == "🏠 Home":
                 ]
                 best_model_name = best_model["Model"]
                 best_model_accuracy = float(best_model["Accuracy"])
+                if "Recall_Churn" in best_model:
+                    best_model_recall = float(best_model["Recall_Churn"])
+                if "ROC_AUC" in best_model:
+                    best_model_roc_auc = float(best_model["ROC_AUC"])
         except (OSError, ValueError, KeyError):
             pass
     
@@ -137,6 +132,10 @@ if menu == "🏠 Home":
         if best_model_accuracy is not None:
             st.metric("Best Model Accuracy", f"{best_model_accuracy:.1%}")
             st.caption(best_model_name)
+            if best_model_recall is not None and best_model_roc_auc is not None:
+                st.caption(
+                    f"Recall (churn): {best_model_recall:.1%} · ROC-AUC: {best_model_roc_auc:.3f}"
+                )
         else:
             st.metric("Best Model Accuracy", "Not available")
 

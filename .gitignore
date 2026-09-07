@@ -10,4 +10,5 @@ __pycache__/
 *.py[cod]
 .env
 *.pkl
+!ml_model/*_pipeline.pkl
 data/

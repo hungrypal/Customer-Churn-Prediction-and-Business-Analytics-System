@@ -45,3 +45,27 @@ Model Performance
 	•	Evaluation using Accuracy, Precision, Recall, F1-score
 	•	Focus on Recall for churn detection
 
+## Deployment configuration
+
+The production API runs with:
+
+```bash
+uvicorn backend.api:app --host 0.0.0.0 --port $PORT
+```
+
+Set `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, and
+`FRONTEND_ORIGIN` in the deployment environment. The React static site must set
+`VITE_API_URL` to the public backend URL at build time. `render.yaml` defines a
+separate Render Web Service for FastAPI and Static Site for React.
+
+The three saved `ml_model/*_pipeline.pkl` artifacts are required by the API and
+are intentionally tracked so a clean Render build can load them.
+
+## Prediction-threshold note
+
+The saved models and runtime prediction behavior are unchanged. Training reports
+binary evaluation results using a probability threshold above `0.40`, while the
+runtime service uses each sklearn classifier's native `predict()` output and
+labels risk using its existing `0.40` and `0.70` probability bands. These
+thresholds should be aligned only through an explicitly approved model-policy
+change, not as part of deployment configuration.

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL;
 const options = {
   gender: ["Female", "Male"], SeniorCitizen: [0, 1], Partner: ["No", "Yes"], Dependents: ["No", "Yes"],
   PhoneService: ["No", "Yes"], MultipleLines: ["No", "No phone service", "Yes"],
@@ -35,8 +35,13 @@ export function App() {
 
   async function submit(event) {
     event.preventDefault(); setLoading(true); setError(""); setResult(null);
+    if (!API_URL) {
+      setError("The application is missing its API configuration.");
+      setLoading(false);
+      return;
+    }
     try {
-      const response = await fetch(`${API_URL}/api/v1/predictions/${model}`, {
+      const response = await fetch(`${API_URL.replace(/\/$/, "")}/api/v1/predictions/${model}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values)
       });
       const body = await response.json();

@@ -12,7 +12,7 @@ MODELS_DIR = BASE_DIR / "ml_model"
 
 # Explicitly load .env from project root
 ENV_FILE = BASE_DIR / ".env"
-load_dotenv(dotenv_path=ENV_FILE, override=True)
+load_dotenv(dotenv_path=ENV_FILE, override=False)
 
 DATA_DIR.mkdir(exist_ok=True)
 MODELS_DIR.mkdir(exist_ok=True)

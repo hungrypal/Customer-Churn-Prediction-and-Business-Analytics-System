@@ -13,7 +13,7 @@ from backend.database import DatabaseManager
 app = FastAPI(title="Customer Churn Prediction API", version="1.0.0")
 
 allowed_origins = [origin.strip() for origin in os.getenv(
-    "FRONTEND_ORIGIN", "http://localhost:5173"
+    "FRONTEND_ORIGIN", ""
 ).split(",") if origin.strip()]
 
 app.add_middleware(
