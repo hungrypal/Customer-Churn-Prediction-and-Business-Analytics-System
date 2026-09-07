@@ -1,6 +1,13 @@
+# Python virtual environments
+venv/
+.venv/
+env/
 xvenv/
+node_modules/
+frontend/.env.local
+frontend/dist/
 __pycache__/
-*.pyc
+*.py[cod]
 .env
 *.pkl
 data/

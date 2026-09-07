@@ -5,6 +5,7 @@ from backend.predictions import ChurnPredictor
 from backend.database import DatabaseManager
 from backend.config import DATA_DIR
 from datetime import datetime
+import json
 
 st.set_page_config(
     page_title="Prediction - Churn Prediction",
@@ -28,28 +29,39 @@ col1, col2 = st.columns([2, 1])
 with col1:
     with st.form("prediction_form", clear_on_submit=False):
         st.markdown("### Customer Information")
-        
-        col_a, col_b = st.columns(2)
-        
-        with col_a:
-            customer_id = st.text_input("Customer ID *", placeholder="Enter customer ID")
-            tenure = st.number_input("Tenure (months)", min_value=0, max_value=100, value=12)
-            monthly_charges = st.number_input("Monthly Charges ($)", min_value=0.0, value=79.50)
-            total_charges = st.number_input("Total Charges ($)", min_value=0.0, value=1000.00)
-        
-        with col_b:
-            contract_type = st.selectbox(
-                "Contract Type",
-                ["Month-to-month", "One year", "Two year"]
-            )
-            payment_method = st.selectbox(
-                "Payment Method",
-                ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"]
-            )
-            internet_service = st.selectbox(
-                "Internet Service",
-                ["DSL", "Fiber optic", "No"]
-            )
+        customer_id = st.text_input("Customer ID *", placeholder="Enter customer ID")
+        customer_left, customer_right = st.columns(2)
+        with customer_left:
+            gender = st.selectbox("Gender", ["Female", "Male"])
+            senior_citizen = st.selectbox("Senior Citizen", [0, 1], format_func=lambda value: "Yes" if value else "No")
+        with customer_right:
+            partner = st.selectbox("Partner", ["No", "Yes"])
+            dependents = st.selectbox("Dependents", ["No", "Yes"])
+
+        st.markdown("### Services")
+        service_left, service_right = st.columns(2)
+        with service_left:
+            tenure = st.number_input("Tenure (months)", min_value=0, max_value=72, value=12, step=1)
+            phone_service = st.selectbox("Phone Service", ["No", "Yes"], index=1)
+            multiple_lines = st.selectbox("Multiple Lines", ["No", "No phone service", "Yes"])
+            internet_service = st.selectbox("Internet Service", ["DSL", "Fiber optic", "No"])
+            online_security = st.selectbox("Online Security", ["No", "No internet service", "Yes"])
+        with service_right:
+            online_backup = st.selectbox("Online Backup", ["No", "No internet service", "Yes"])
+            device_protection = st.selectbox("Device Protection", ["No", "No internet service", "Yes"])
+            tech_support = st.selectbox("Tech Support", ["No", "No internet service", "Yes"])
+            streaming_tv = st.selectbox("Streaming TV", ["No", "No internet service", "Yes"])
+            streaming_movies = st.selectbox("Streaming Movies", ["No", "No internet service", "Yes"])
+
+        st.markdown("### Contract & Billing")
+        billing_left, billing_right = st.columns(2)
+        with billing_left:
+            contract = st.selectbox("Contract", ["Month-to-month", "One year", "Two year"])
+            paperless_billing = st.selectbox("Paperless Billing", ["No", "Yes"], index=1)
+            payment_method = st.selectbox("Payment Method", ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"])
+        with billing_right:
+            monthly_charges = st.number_input("Monthly Charges ($)", min_value=18.25, max_value=118.75, value=79.50, step=0.01)
+            total_charges = st.number_input("Total Charges ($)", min_value=18.80, max_value=8684.80, value=1000.00, step=0.01)
         
         model_type = st.radio(
             "Select Model",
@@ -63,15 +75,28 @@ with col1:
             if not customer_id:
                 st.error("Please enter Customer ID")
             else:
-                # Prepare features
+                # These are exactly the 19 raw columns expected by every
+                # persisted sklearn pipeline. No model feature is defaulted.
                 features = {
-                    'customer_id': customer_id,
-                    'tenure': tenure,
-                    'monthly_charges': monthly_charges,
-                    'total_charges': total_charges,
-                    'contract_type': contract_type,
-                    'payment_method': payment_method,
-                    'internet_service': internet_service
+                    "gender": gender,
+                    "SeniorCitizen": senior_citizen,
+                    "Partner": partner,
+                    "Dependents": dependents,
+                    "tenure": tenure,
+                    "PhoneService": phone_service,
+                    "MultipleLines": multiple_lines,
+                    "InternetService": internet_service,
+                    "OnlineSecurity": online_security,
+                    "OnlineBackup": online_backup,
+                    "DeviceProtection": device_protection,
+                    "TechSupport": tech_support,
+                    "StreamingTV": streaming_tv,
+                    "StreamingMovies": streaming_movies,
+                    "Contract": contract,
+                    "PaperlessBilling": paperless_billing,
+                    "PaymentMethod": payment_method,
+                    "MonthlyCharges": monthly_charges,
+                    "TotalCharges": total_charges,
                 }
                 
                 # Make prediction
@@ -93,12 +118,19 @@ with col1:
                         "prediction": result["prediction"],
                         "probability": result["probability"],
                         "risk_level": result["churn_risk"],
-                        "timestamp": datetime.now()
+                        "timestamp": datetime.now(),
+                        "features": json.dumps(features),
                     }])
 
                     prediction_file = DATA_DIR / "user_predictions.csv"
 
                     if prediction_file.exists():
+                        existing_predictions = pd.read_csv(prediction_file)
+                        # Upgrade the legacy six-column history without losing
+                        # prior rows, then retain the full 19-feature request.
+                        if "features" not in existing_predictions.columns:
+                            existing_predictions["features"] = None
+                            existing_predictions.to_csv(prediction_file, index=False)
                         prediction_record.to_csv(
                             prediction_file,
                             mode="a",

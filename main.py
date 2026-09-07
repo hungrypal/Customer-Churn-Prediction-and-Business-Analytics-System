@@ -92,6 +92,8 @@ if menu == "🏠 Home":
 
     # Load dataset for metrics
     df = None
+    best_model_name = None
+    best_model_accuracy = None
 
     if (DATA_DIR / "churn_data.csv").exists():
         df = pd.read_csv(DATA_DIR / "churn_data.csv")
@@ -105,6 +107,22 @@ if menu == "🏠 Home":
     else:
         total_customers = 0
         churn_rate = 0
+
+    model_comparison_file = DATA_DIR / "model_comparison.csv"
+    if model_comparison_file.exists():
+        try:
+            model_comparison = pd.read_csv(model_comparison_file)
+            if {"Model", "Accuracy"}.issubset(model_comparison.columns):
+                model_comparison["Accuracy"] = pd.to_numeric(
+                    model_comparison["Accuracy"], errors="coerce"
+                )
+                best_model = model_comparison.dropna(subset=["Accuracy"]).loc[
+                    lambda frame: frame["Accuracy"].idxmax()
+                ]
+                best_model_name = best_model["Model"]
+                best_model_accuracy = float(best_model["Accuracy"])
+        except (OSError, ValueError, KeyError):
+            pass
     
     # Key metrics
     col1, col2, col3, col4 = st.columns(4)
@@ -116,7 +134,11 @@ if menu == "🏠 Home":
         st.metric("Churn Rate", f"{churn_rate:.2f}%")
 
     with col3:
-        st.metric("Model Accuracy", "94.2%")
+        if best_model_accuracy is not None:
+            st.metric("Best Model Accuracy", f"{best_model_accuracy:.1%}")
+            st.caption(best_model_name)
+        else:
+            st.metric("Best Model Accuracy", "Not available")
 
     with col4:
 

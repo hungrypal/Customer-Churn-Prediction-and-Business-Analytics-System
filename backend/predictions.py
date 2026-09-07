@@ -10,6 +10,15 @@ from backend.config import (
 )
 
 
+MODEL_FEATURES = (
+    "gender", "SeniorCitizen", "Partner", "Dependents", "tenure",
+    "PhoneService", "MultipleLines", "InternetService", "OnlineSecurity",
+    "OnlineBackup", "DeviceProtection", "TechSupport", "StreamingTV",
+    "StreamingMovies", "Contract", "PaperlessBilling", "PaymentMethod",
+    "MonthlyCharges", "TotalCharges",
+)
+
+
 class ChurnPredictor:
     """
     Handle ML predictions using saved sklearn pipelines
@@ -50,30 +59,16 @@ class ChurnPredictor:
             print("Error Loading Models:", e)
 
     def prepare_features(self, features: Dict):
+        """Return the exact raw columns expected by the trained pipelines.
 
-        df = pd.DataFrame([{
-            "gender": "Male",
-            "SeniorCitizen": 0,
-            "Partner": "No",
-            "Dependents": "No",
-            "tenure": features["tenure"],
-            "PhoneService": "Yes",
-            "MultipleLines": "No",
-            "InternetService": features["internet_service"],
-            "OnlineSecurity": "No",
-            "OnlineBackup": "No",
-            "DeviceProtection": "No",
-            "TechSupport": "No",
-            "StreamingTV": "No",
-            "StreamingMovies": "No",
-            "Contract": features["contract_type"],
-            "PaperlessBilling": "Yes",
-            "PaymentMethod": features["payment_method"],
-            "MonthlyCharges": features["monthly_charges"],
-            "TotalCharges": features["total_charges"]
-        }])
+        Required fields are intentionally not defaulted. The caller must provide
+        all 19 features so that predictions represent the supplied customer.
+        """
+        missing = [feature for feature in MODEL_FEATURES if feature not in features]
+        if missing:
+            raise ValueError(f"Missing required model features: {', '.join(missing)}")
 
-        return df
+        return pd.DataFrame([{feature: features[feature] for feature in MODEL_FEATURES}])
 
     def predict(self,
                 features: Dict,

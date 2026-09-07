@@ -14,6 +14,9 @@ idna==3.11
 importlib_resources==6.5.2
 Jinja2==3.1.6
 joblib==1.5.3
+fastapi==0.115.6
+mysql-connector-python==9.4.0
+pydantic==2.10.3
 jsonschema==4.25.1
 jsonschema-specifications==2025.9.1
 kiwisolver==1.4.7
@@ -46,5 +49,6 @@ tornado==6.5.4
 typing_extensions==4.15.0
 tzdata==2025.3
 urllib3==2.6.3
+uvicorn[standard]==0.34.0
 xgboost==2.1.4
 zipp==3.23.0
