@@ -21,6 +21,7 @@ st.subheader("Machine Learning Model Performance & Business Insights")
 
 confusion_matrix_logistic = None
 confusion_matrix_rf = None
+confusion_matrix_deep_learning = None
 feature_importance = None
 
 try:
@@ -30,6 +31,11 @@ except:
 
 try:
     confusion_matrix_rf = pd.read_csv(DATA_DIR / "cm_rf_tableau.csv")
+except:
+    pass
+
+try:
+    confusion_matrix_deep_learning = pd.read_csv(DATA_DIR / "cm_deep_learning_tableau.csv")
 except:
     pass
 
@@ -59,7 +65,7 @@ st.link_button(
 st.markdown("---")
 st.header("📉 Model Performance")
 
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 # Logistic Regression
 with col1:
@@ -107,6 +113,30 @@ with col2:
 
     else:
         st.warning("Random Forest confusion matrix file not found")
+
+
+# Deep Learning Neural Network
+with col3:
+    st.subheader("Deep Learning")
+
+    if confusion_matrix_deep_learning is not None:
+
+        cm_deep = confusion_matrix_deep_learning.pivot(
+            index="Actual",
+            columns="Predicted",
+            values="Count"
+        )
+
+        fig = px.imshow(
+            cm_deep,
+            text_auto=True,
+            color_continuous_scale="Purples"
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    else:
+        st.warning("Deep learning confusion matrix file not found. Run train_model.py.")
 
 
 # ----------------------------------

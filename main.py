@@ -79,7 +79,7 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("### Model Info")
-    st.info("✅ Logistic Regression\n✅ Random Forest")
+    st.info("✅ Logistic Regression\n✅ Random Forest\n✅ Deep Learning Neural Network")
     
     st.markdown("---")
     st.markdown("### Data Source")
@@ -208,7 +208,7 @@ if menu == "🏠 Home":
             st.markdown("""
             - Logistic Regression
             - Random Forest
-            - XGBoost
+            - Deep Learning Neural Network
             - Real-time predictions
             """)
     
@@ -257,4 +257,3 @@ elif menu == "🔮 Prediction":
 
 elif menu == "📈 Analytics":
     st.markdown("### Analytics Page - Coming Soon")
-

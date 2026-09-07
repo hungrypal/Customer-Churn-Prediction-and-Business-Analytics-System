@@ -53,7 +53,7 @@ with col1:
         
         model_type = st.radio(
             "Select Model",
-            ["random_forest", "logistic"],
+            ["random_forest", "logistic", "deep_learning"],
             horizontal=True
         )
         
@@ -186,4 +186,3 @@ if prediction_file.exists():
 # if (DATA_DIR / "final_predictions.csv").exists():
 #     predictions_df = pd.read_csv(DATA_DIR / "final_predictions.csv")
     # st.dataframe(predictions_df.head(10), use_container_width=True)
-

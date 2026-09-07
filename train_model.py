@@ -101,7 +101,9 @@ preprocessor = ColumnTransformer(
         ),
         (
             "cat",
-            OneHotEncoder(handle_unknown="ignore"),
+            # A dense output works with the neural network and is still small
+            # enough for this tabular churn dataset.
+            OneHotEncoder(handle_unknown="ignore", sparse_output=False),
             categorical_features
         )
     ]
@@ -144,6 +146,7 @@ print("Testing size:", X_test.shape)
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
 
 # Logistic Regression
 log_pipeline = Pipeline([
@@ -177,6 +180,30 @@ rf_pipeline = Pipeline([
 
 rf_pipeline.fit(X_train, y_train)
 
+# Deep Learning (multilayer neural network)
+# Scaling numeric features and one-hot encoding categoricals happen in the
+# pipeline before the network is trained.
+deep_learning_pipeline = Pipeline([
+    ("preprocessor", preprocessor),
+    (
+        "classifier",
+        MLPClassifier(
+            hidden_layer_sizes=(64, 32, 16),
+            activation="relu",
+            solver="adam",
+            alpha=0.0005,
+            learning_rate_init=0.001,
+            max_iter=500,
+            early_stopping=True,
+            validation_fraction=0.15,
+            n_iter_no_change=20,
+            random_state=42
+        )
+    )
+])
+
+deep_learning_pipeline.fit(X_train, y_train)
+
 
 # ===============================
 # 7. MODEL PREDICTIONS
@@ -189,6 +216,10 @@ log_pred = (log_prob > 0.4).astype(int)
 # Random forest predictions
 rf_prob = rf_pipeline.predict_proba(X_test)[:, 1]
 rf_pred = (rf_prob > 0.4).astype(int)
+
+# Deep learning predictions
+deep_prob = deep_learning_pipeline.predict_proba(X_test)[:, 1]
+deep_pred = (deep_prob > 0.4).astype(int)
 
 
 # ===============================
@@ -226,6 +257,17 @@ print(confusion_matrix(y_test, rf_pred))
 print("\nClassification Report:")
 print(classification_report(y_test, rf_pred))
 
+print("\n===== Deep Learning Neural Network Results =====")
+
+print("Accuracy:", accuracy_score(y_test, deep_pred))
+print("ROC AUC:", roc_auc_score(y_test, deep_prob))
+
+print("\nConfusion Matrix:")
+print(confusion_matrix(y_test, deep_pred))
+
+print("\nClassification Report:")
+print(classification_report(y_test, deep_pred))
+
 
 # ===============================
 # 9. FEATURE IMPORTANCE
@@ -252,18 +294,21 @@ print(classification_report(y_test, rf_pred))
 # ===============================
 
 model_comparison = pd.DataFrame({
-    "Model": ["Logistic Regression", "Random Forest"],
+    "Model": ["Logistic Regression", "Random Forest", "Deep Learning Neural Network"],
     "Accuracy": [
         accuracy_score(y_test, log_pred),
-        accuracy_score(y_test, rf_pred)
+        accuracy_score(y_test, rf_pred),
+        accuracy_score(y_test, deep_pred)
     ],
     "Recall_Churn": [
         recall_score(y_test, log_pred),
-        recall_score(y_test, rf_pred)
+        recall_score(y_test, rf_pred),
+        recall_score(y_test, deep_pred)
     ],
     "ROC_AUC": [
         roc_auc_score(y_test, log_prob),
-        roc_auc_score(y_test, rf_prob)
+        roc_auc_score(y_test, rf_prob),
+        roc_auc_score(y_test, deep_prob)
     ]
 })
 
@@ -296,6 +341,17 @@ cm_rf_tableau = pd.DataFrame({
 cm_rf_tableau.to_csv(DATA_DIR / "cm_rf_tableau.csv", index=False)
 
 
+cm_deep = confusion_matrix(y_test, deep_pred)
+
+cm_deep_tableau = pd.DataFrame({
+    "Actual": [0, 0, 1, 1],
+    "Predicted": [0, 1, 0, 1],
+    "Count": cm_deep.flatten()
+})
+
+cm_deep_tableau.to_csv(DATA_DIR / "cm_deep_learning_tableau.csv", index=False)
+
+
 # ===============================
 # 12. RISK SEGMENTATION
 # ===============================
@@ -325,6 +381,9 @@ results["Risk_Level"] = results["Churn_Probability"].apply(risk_segment)
 results["RF_Predicted_Churn"] = rf_pred
 results["RF_Churn_Probability"] = rf_prob
 
+results["Deep_Learning_Predicted_Churn"] = deep_pred
+results["Deep_Learning_Churn_Probability"] = deep_prob
+
 results.to_csv(DATA_DIR / "final_predictions.csv", index=False)
 
 print("\nFinal prediction file saved successfully.")
@@ -342,6 +401,11 @@ joblib.dump(
 joblib.dump(
     rf_pipeline,
     MODELS_DIR / "random_forest_pipeline.pkl"
+)
+
+joblib.dump(
+    deep_learning_pipeline,
+    MODELS_DIR / "deep_learning_pipeline.pkl"
 )
 
 print("Pipeline models saved successfully")

@@ -32,3 +32,4 @@ TABLEAU_CONFIG = {
 # -----------------------------
 LOGISTIC_MODEL_PATH = MODELS_DIR / "logistic_pipeline.pkl"
 RANDOM_FOREST_MODEL_PATH = MODELS_DIR / "random_forest_pipeline.pkl"
+DEEP_LEARNING_MODEL_PATH = MODELS_DIR / "deep_learning_pipeline.pkl"

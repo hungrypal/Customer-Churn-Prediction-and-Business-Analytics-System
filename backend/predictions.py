@@ -5,7 +5,8 @@ from typing import Dict, List
 
 from backend.config import (
     LOGISTIC_MODEL_PATH,
-    RANDOM_FOREST_MODEL_PATH
+    RANDOM_FOREST_MODEL_PATH,
+    DEEP_LEARNING_MODEL_PATH
 )
 
 
@@ -17,6 +18,7 @@ class ChurnPredictor:
     def __init__(self):
         self.logistic_model = None
         self.rf_model = None
+        self.deep_learning_model = None
         self.load_models()
 
     def load_models(self):
@@ -36,6 +38,13 @@ class ChurnPredictor:
 
             else:
                 print("Random Forest Pipeline Not Found")
+
+            if Path(DEEP_LEARNING_MODEL_PATH).exists():
+                self.deep_learning_model = joblib.load(DEEP_LEARNING_MODEL_PATH)
+                print("Deep Learning Pipeline Loaded")
+
+            else:
+                print("Deep Learning Pipeline Not Found")
 
         except Exception as e:
             print("Error Loading Models:", e)
@@ -81,12 +90,22 @@ class ChurnPredictor:
 
                 model = self.logistic_model
 
-            else:
+            elif model_type == "deep_learning":
+
+                if self.deep_learning_model is None:
+                    return {"error": "Deep learning model not loaded. Run train_model.py first."}
+
+                model = self.deep_learning_model
+
+            elif model_type == "random_forest":
 
                 if self.rf_model is None:
                     return {"error": "Random Forest model not loaded"}
 
                 model = self.rf_model
+
+            else:
+                return {"error": f"Unknown model type: {model_type}"}
 
             prediction = model.predict(df)[0]
 
