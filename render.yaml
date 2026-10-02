@@ -26,10 +26,15 @@ services:
         value: "true"
       - key: AUTH_COOKIE_SAMESITE
         value: "lax"
-  - type: static
+  - type: web
     name: churn-prediction-web
+    runtime: static
     buildCommand: cd frontend && npm ci && npm run build
     staticPublishPath: frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: VITE_API_URL
         sync: false
