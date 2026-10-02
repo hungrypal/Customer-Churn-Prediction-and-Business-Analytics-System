@@ -18,6 +18,14 @@ services:
         sync: false
       - key: FRONTEND_ORIGIN
         sync: false
+      - key: AUTH_COOKIE_NAME
+        value: "churn_session"
+      - key: AUTH_SESSION_HOURS
+        value: "24"
+      - key: AUTH_COOKIE_SECURE
+        value: "true"
+      - key: AUTH_COOKIE_SAMESITE
+        value: "lax"
   - type: static
     name: churn-prediction-web
     buildCommand: cd frontend && npm ci && npm run build

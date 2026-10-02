@@ -28,6 +28,13 @@ DB_CONFIG = {
     "database": os.getenv("DB_NAME"),
 }
 
+AUTH_COOKIE_NAME = os.getenv("AUTH_COOKIE_NAME", "churn_session")
+AUTH_SESSION_HOURS = max(1, int(os.getenv("AUTH_SESSION_HOURS", "24")))
+AUTH_COOKIE_SECURE = os.getenv("AUTH_COOKIE_SECURE", "false").lower() == "true"
+AUTH_COOKIE_SAMESITE = os.getenv("AUTH_COOKIE_SAMESITE", "lax").lower()
+if AUTH_COOKIE_SAMESITE not in {"lax", "strict", "none"}:
+    AUTH_COOKIE_SAMESITE = "lax"
+
 # -----------------------------
 # Tableau Dashboard Link
 # -----------------------------

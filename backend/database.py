@@ -43,6 +43,35 @@ class DatabaseManager:
         try:
             cursor.execute(
                 """
+                CREATE TABLE IF NOT EXISTS users (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(120) NOT NULL,
+                    email VARCHAR(254) NOT NULL UNIQUE,
+                    password_hash VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                        ON UPDATE CURRENT_TIMESTAMP
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS auth_sessions (
+                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT NOT NULL,
+                    token_hash CHAR(64) NOT NULL UNIQUE,
+                    expires_at DATETIME NOT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    CONSTRAINT fk_auth_sessions_user
+                        FOREIGN KEY (user_id) REFERENCES users(id)
+                        ON DELETE CASCADE,
+                    INDEX idx_auth_sessions_expiry (expires_at),
+                    INDEX idx_auth_sessions_user (user_id)
+                )
+                """
+            )
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS predictions (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     customer_id VARCHAR(50) NULL,
@@ -60,6 +89,102 @@ class DatabaseManager:
             connection.commit()
         finally:
             cursor.close()
+
+    def create_user(self, name: str, email: str, password_hash: str) -> Dict[str, Any]:
+        connection = cursor = None
+        try:
+            connection = self._connect()
+            self.create_tables(connection)
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(
+                "INSERT INTO users (name, email, password_hash) VALUES (%s, %s, %s)",
+                (name, email, password_hash),
+            )
+            connection.commit()
+            cursor.execute(
+                "SELECT id, name, email FROM users WHERE id = %s",
+                (cursor.lastrowid,),
+            )
+            return cursor.fetchone()
+        finally:
+            if cursor:
+                cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
+
+    def get_user_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        return self._get_user("SELECT id, name, email, password_hash FROM users WHERE email = %s", (email,))
+
+    def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
+        return self._get_user("SELECT id, name, email FROM users WHERE id = %s", (user_id,))
+
+    def _get_user(self, query: str, params: Tuple[Any, ...]) -> Optional[Dict[str, Any]]:
+        connection = cursor = None
+        try:
+            connection = self._connect()
+            self.create_tables(connection)
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(query, params)
+            return cursor.fetchone()
+        finally:
+            if cursor:
+                cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
+
+    def create_session(self, user_id: int, token_hash: str, expires_at: datetime) -> None:
+        connection = cursor = None
+        try:
+            connection = self._connect()
+            self.create_tables(connection)
+            cursor = connection.cursor()
+            cursor.execute(
+                "INSERT INTO auth_sessions (user_id, token_hash, expires_at) VALUES (%s, %s, %s)",
+                (user_id, token_hash, expires_at),
+            )
+            connection.commit()
+        finally:
+            if cursor:
+                cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
+
+    def get_user_by_session(self, token_hash: str) -> Optional[Dict[str, Any]]:
+        connection = cursor = None
+        try:
+            connection = self._connect()
+            self.create_tables(connection)
+            cursor = connection.cursor(dictionary=True)
+            cursor.execute(
+                """
+                SELECT users.id, users.name, users.email
+                FROM auth_sessions
+                INNER JOIN users ON users.id = auth_sessions.user_id
+                WHERE auth_sessions.token_hash = %s
+                  AND auth_sessions.expires_at > UTC_TIMESTAMP()
+                """,
+                (token_hash,),
+            )
+            return cursor.fetchone()
+        finally:
+            if cursor:
+                cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
+
+    def delete_session(self, token_hash: str) -> None:
+        connection = cursor = None
+        try:
+            connection = self._connect()
+            self.create_tables(connection)
+            cursor = connection.cursor()
+            cursor.execute("DELETE FROM auth_sessions WHERE token_hash = %s", (token_hash,))
+            connection.commit()
+        finally:
+            if cursor:
+                cursor.close()
+            if connection and connection.is_connected():
+                connection.close()
 
     def save_prediction(
         self,
