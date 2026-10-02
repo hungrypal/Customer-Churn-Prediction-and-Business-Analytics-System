@@ -1,73 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { BarChart3, BrainCircuit, Database, Home, Menu, ShieldAlert, Sparkles, X } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Link, NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { coreApi } from "./api/client";
+import { predictionApi } from "./api/predictionApi";
+import { historyApi } from "./api/historyApi";
+import { dashboardApi } from "./api/dashboardApi";
+import { analyticsApi } from "./api/analyticsApi";
 
-const API_URL = import.meta.env.VITE_API_URL;
-const options = {
-  gender: ["Female", "Male"], SeniorCitizen: [0, 1], Partner: ["No", "Yes"], Dependents: ["No", "Yes"],
-  PhoneService: ["No", "Yes"], MultipleLines: ["No", "No phone service", "Yes"],
-  InternetService: ["DSL", "Fiber optic", "No"],
-  OnlineSecurity: ["No", "No internet service", "Yes"], OnlineBackup: ["No", "No internet service", "Yes"],
-  DeviceProtection: ["No", "No internet service", "Yes"], TechSupport: ["No", "No internet service", "Yes"],
-  StreamingTV: ["No", "No internet service", "Yes"], StreamingMovies: ["No", "No internet service", "Yes"],
-  Contract: ["Month-to-month", "One year", "Two year"], PaperlessBilling: ["No", "Yes"],
-  PaymentMethod: ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"]
-};
-const initial = {
-  gender: "Female", SeniorCitizen: 0, Partner: "No", Dependents: "No", tenure: 12,
-  PhoneService: "Yes", MultipleLines: "No", InternetService: "DSL", OnlineSecurity: "No",
-  OnlineBackup: "No", DeviceProtection: "No", TechSupport: "No", StreamingTV: "No",
-  StreamingMovies: "No", Contract: "Month-to-month", PaperlessBilling: "Yes",
-  PaymentMethod: "Electronic check", MonthlyCharges: 79.5, TotalCharges: 954
-};
-const sections = [
-  ["Customer information", ["gender", "SeniorCitizen", "Partner", "Dependents"]],
-  ["Services", ["tenure", "PhoneService", "MultipleLines", "InternetService", "OnlineSecurity", "OnlineBackup", "DeviceProtection", "TechSupport", "StreamingTV", "StreamingMovies"]],
-  ["Contract & billing", ["Contract", "PaperlessBilling", "PaymentMethod", "MonthlyCharges", "TotalCharges"]]
-];
-const label = (name) => name.replace(/([A-Z])/g, " $1").trim().replace("Senior Citizen", "Senior citizen").replace("Streaming T V", "Streaming TV");
+const nav = [["/", "Home", Home], ["/dashboard", "Dashboard", BarChart3], ["/prediction", "Prediction", BrainCircuit], ["/analytics", "Analytics", Sparkles]];
+const options = { gender:["Female","Male"], SeniorCitizen:[0,1], Partner:["No","Yes"], Dependents:["No","Yes"], PhoneService:["No","Yes"], MultipleLines:["No","No phone service","Yes"], InternetService:["DSL","Fiber optic","No"], OnlineSecurity:["No","No internet service","Yes"], OnlineBackup:["No","No internet service","Yes"], DeviceProtection:["No","No internet service","Yes"], TechSupport:["No","No internet service","Yes"], StreamingTV:["No","No internet service","Yes"], StreamingMovies:["No","No internet service","Yes"], Contract:["Month-to-month","One year","Two year"], PaperlessBilling:["No","Yes"], PaymentMethod:["Electronic check","Mailed check","Bank transfer (automatic)","Credit card (automatic)"] };
+const initial = { gender:"Female",SeniorCitizen:0,Partner:"No",Dependents:"No",tenure:12,PhoneService:"Yes",MultipleLines:"No",InternetService:"DSL",OnlineSecurity:"No",OnlineBackup:"No",DeviceProtection:"No",TechSupport:"No",StreamingTV:"No",StreamingMovies:"No",Contract:"Month-to-month",PaperlessBilling:"Yes",PaymentMethod:"Electronic check",MonthlyCharges:79.5,TotalCharges:954 };
+const groups = [["Customer information",["gender","SeniorCitizen","Partner","Dependents"]],["Services",["tenure","PhoneService","MultipleLines","InternetService","OnlineSecurity","OnlineBackup","DeviceProtection","TechSupport","StreamingTV","StreamingMovies"]],["Contract & billing",["Contract","PaperlessBilling","PaymentMethod","MonthlyCharges","TotalCharges"]]];
+const label = (v) => v.replace(/([A-Z])/g," $1").trim().replace("Senior Citizen","Senior citizen").replace("Streaming T V","Streaming TV");
+function useResource(loader) { const [state,setState]=useState({loading:true,data:null,error:null}); useEffect(()=>{let active=true; loader().then(data=>active&&setState({loading:false,data,error:null})).catch(error=>active&&setState({loading:false,data:null,error})); return()=>{active=false};},[]); return state; }
+function MotionCard({children,className=""}) { return <motion.section layout whileHover={{y:-2}} transition={{duration:.18}} className={`card ${className}`}>{children}</motion.section>; }
+function AnimatedCounter({value}) { return <motion.span initial={{opacity:0,y:7}} animate={{opacity:1,y:0}}>{value ?? "Unavailable"}</motion.span>; }
+function RiskBadge({value}) { return <span className={`risk ${String(value).toLowerCase().replaceAll(" ","-")}`}>{value}</span>; }
+function SectionState({state,empty="No data available."}) { if(state.loading) return <div className="state">Loading…</div>; if(state.error) return <div className="state error">Unavailable — {state.error.message}</div>; if(!state.data || (Array.isArray(state.data)&&!state.data.length)) return <div className="state">{empty}</div>; return null; }
+function PageTransition({children}) { const location=useLocation(); return <AnimatePresence mode="wait"><motion.div key={location.pathname} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:.2}}>{children}</motion.div></AnimatePresence>; }
 
-export function App() {
-  const [customerID, setCustomerID] = useState("");
-  const [values, setValues] = useState(initial);
-  const [model, setModel] = useState("random_forest");
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const update = (name, value) => setValues((current) => ({ ...current, [name]: value }));
-
-  async function submit(event) {
-    event.preventDefault(); setLoading(true); setError(""); setResult(null);
-    if (!API_URL) {
-      setError("The application is missing its API configuration.");
-      setLoading(false);
-      return;
-    }
-    try {
-      const response = await fetch(`${API_URL.replace(/\/$/, "")}/api/v1/predictions/${model}`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerID, ...values })
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.detail?.[0]?.msg || body.detail || "Prediction failed.");
-      setResult(body);
-    } catch (err) { setError(err.message); } finally { setLoading(false); }
-  }
-
-  return <main className="shell">
-    <header><p className="eyebrow">CUSTOMER RETENTION</p><h1>Churn prediction</h1><p>Provide the complete customer profile to score churn risk.</p></header>
-    <form onSubmit={submit}>
-      <section className="form-section customer-id-section" key="customer-id"><h2>Customer ID</h2>
-        <label>Customer ID<input required id="customerID" type="text" placeholder="e.g. 7590-VHVEG" value={customerID} onChange={(e) => setCustomerID(e.target.value)} /></label>
-      </section>
-      {sections.map(([title, fields]) => <section className="form-section" key={title}><h2>{title}</h2><div className="field-grid">
-        {fields.map((field) => <label key={field}>{label(field)}
-          {options[field] ? <select value={values[field]} onChange={(e) => update(field, field === "SeniorCitizen" ? Number(e.target.value) : e.target.value)}>{options[field].map((value) => <option key={value} value={value}>{field === "SeniorCitizen" ? (value ? "Yes" : "No") : value}</option>)}</select>
-            : <input required type="number" min={field === "tenure" ? 0 : field === "MonthlyCharges" ? 18.25 : 18.8} max={field === "tenure" ? 72 : field === "MonthlyCharges" ? 118.75 : 8684.8} step={field === "tenure" ? 1 : 0.01} value={values[field]} onChange={(e) => update(field, Number(e.target.value))} />}
-        </label>)}
-      </div></section>)}
-      <section className="model-section"><h2>Model</h2><div className="model-options">
-        {["logistic", "random_forest", "deep_learning"].map((id) => <label key={id}><input type="radio" checked={model === id} onChange={() => setModel(id)} /> {id.replaceAll("_", " ")}</label>)}
-      </div><button disabled={loading}>{loading ? "Calculating…" : "Predict churn risk"}</button></section>
-    </form>
-    {error && <p className="notice error">{error}</p>}
-    {result && <section className={`result ${result.churn_risk.toLowerCase()}`}><p>CHURN RISK</p><h2>{result.churn_risk}</h2><strong>{(result.probability * 100).toFixed(1)}%</strong><span>{result.prediction ? "Likely to churn" : "Unlikely to churn"} · {result.model_used.replaceAll("_", " ")}</span></section>}
-  </main>;
-}
+function Layout(){const [open,setOpen]=useState(false);return <div className="app"><button className="mobile-menu" onClick={()=>setOpen(true)} aria-label="Open navigation"><Menu/></button><aside className={open?"sidebar open":"sidebar"}><button className="close" onClick={()=>setOpen(false)}><X/></button><Link className="brand" to="/"><ShieldAlert/> <span>Churn<span>Signal</span></span></Link><p className="brand-note">Retention intelligence</p><nav>{nav.map(([to,name,Icon])=><NavLink end={to==="/"} to={to} key={to} onClick={()=>setOpen(false)}><Icon size={18}/>{name}</NavLink>)}</nav><div className="side-status"><span>MODELS</span><p><i/> Logistic · Forest · Neural</p></div></aside><main className="content"><PageTransition><Routes><Route path="/" element={<HomePage/>}/><Route path="/dashboard" element={<Dashboard/>}/><Route path="/prediction" element={<Prediction/>}/><Route path="/analytics" element={<Analytics/>}/></Routes></PageTransition></main></div>}
+function Page({title,subtitle,children}){return <div className="page"><header><p className="eyebrow">CHURN SIGNAL</p><h1>{title}</h1><p>{subtitle}</p></header>{children}</div>}
+function Kpi({label,value,note,state}){return <MotionCard className="kpi"><p>{label}</p>{state.loading?<strong>Loading…</strong>:state.error?<strong>Unavailable</strong>:<strong><AnimatedCounter value={value}/></strong>}{note&&<small>{note}</small>}</MotionCard>}
+function HistoryTable({items}){return <div className="table-wrap"><table><thead><tr><th>Customer</th><th>Model</th><th>Risk</th><th>Probability</th><th>When</th></tr></thead><tbody>{items.map((x,i)=><motion.tr initial={{opacity:0}} whileInView={{opacity:1}} transition={{delay:i*.035}} key={`${x.customer_id}-${x.timestamp}-${i}`}><td>{x.customer_id||"—"}</td><td>{label(x.model_used)}</td><td><RiskBadge value={x.risk_level}/></td><td>{(Number(x.probability)*100).toFixed(1)}%</td><td>{new Date(x.timestamp).toLocaleString()}</td></motion.tr>)}</tbody></table></div>}
+function PredictionHistory(){const [page,setPage]=useState(1),[state,setState]=useState({loading:true,data:null,error:null});useEffect(()=>{let active=true;setState({loading:true,data:null,error:null});historyApi.list(page,20).then(data=>active&&setState({loading:false,data,error:null})).catch(error=>active&&setState({loading:false,data:null,error}));return()=>{active=false};},[page]);const total=state.data?.pagination?.total_pages||0;return <MotionCard><h2>Recent predictions</h2><SectionState state={state} empty="No predictions made yet."/>{state.data?.items?.length>0&&<><HistoryTable items={state.data.items}/><div className="pager"><button disabled={page===1} onClick={()=>setPage(x=>x-1)}>Previous</button><span>Page {page} of {total}</span><button disabled={page>=total} onClick={()=>setPage(x=>x+1)}>Next</button></div></>}</MotionCard>}
+function HomePage(){const dash=useResource(dashboardApi.summary), history=useResource(()=>historyApi.list(1,8)), today=useResource(historyApi.today), health=useResource(coreApi.health); const d=dash.data; return <Page title="A clearer view of customer churn" subtitle="Turn a complete customer profile into an informed retention decision."><div className="hero"><div><p className="eyebrow">CUSTOMER RETENTION</p><h2>Know who needs your attention next.</h2><p>Model-backed churn signals, operational history, and business analytics in one focused workspace.</p><Link className="button" to="/prediction">Make a prediction</Link></div><BrainCircuit size={92}/></div><div className="kpis"><Kpi label="Total customers" value={d?.total_customers} state={dash}/><Kpi label="Churn rate" value={d?`${d.churn_rate.toFixed(2)}%`:null} state={dash}/><Kpi label="Best model accuracy" value={d?.best_model?`${(d.best_model.Accuracy*100).toFixed(1)}%`:null} note={d?.best_model?.Model} state={dash}/><Kpi label="Predictions today" value={today.data?.count} state={today}/></div><div className="split"><MotionCard><h2>Recent predictions</h2><SectionState state={history} empty="No predictions made yet."/>{history.data?.items?.length>0&&<HistoryTable items={history.data.items}/>}</MotionCard><MotionCard><h2>Model status</h2><SectionState state={health}/>{health.data&&<div className="model-status">{Object.entries(health.data.models_loaded).map(([name,loaded])=><p key={name}><i className={loaded?"ready":"offline"}/>{label(name)} <b>{loaded?"Ready":"Unavailable"}</b></p>)}</div>}<hr/><h2>Data source</h2><p className="muted">{d ? `${d.data_file_count} repository CSV files available` : "Unavailable"}</p></MotionCard></div><MotionCard><h2>Built for retention teams</h2><div className="feature-grid"><p><BrainCircuit/> Three model choices</p><p><BarChart3/> Performance visualizations</p><p><Database/> MySQL-backed prediction history</p></div><div className="quick"><Link to="/dashboard">View dashboard →</Link><Link to="/analytics">Explore analytics →</Link></div></MotionCard></Page>}
+function Matrix({rows=[]}){return <div className="matrix">{rows.map(row=><div key={`${row.Actual}-${row.Predicted}`} style={{opacity:.35+Math.min(row.Count/900,.65)}}><small>Actual {row.Actual} · Predicted {row.Predicted}</small><b>{row.Count}</b></div>)}</div>}
+function Importance({items}){return <ResponsiveContainer width="100%" height={330}><BarChart data={items} layout="vertical" margin={{left:18}}><XAxis type="number" hide/><YAxis type="category" dataKey="Feature" width={135} tick={{fontSize:11}}/><Tooltip/><Bar dataKey="Importance" fill="#315d8d" radius={[0,4,4,0]} /></BarChart></ResponsiveContainer>}
+function Comparison({items}){return <ResponsiveContainer width="100%" height={330}><BarChart data={items}><CartesianGrid strokeDasharray="3 3"/><XAxis dataKey="Model" tick={{fontSize:10}}/><YAxis/><Tooltip/><Bar dataKey="Accuracy" fill="#315d8d"/><Bar dataKey="Recall_Churn" fill="#8ba87a"/><Bar dataKey="ROC_AUC" fill="#d49a54"/></BarChart></ResponsiveContainer>}
+function DataTable({data}){return <div className="table-wrap"><table><thead><tr>{data.columns.map(x=><th key={x}>{x}</th>)}</tr></thead><tbody>{data.rows.map((row,i)=><tr key={i}>{data.columns.map(x=><td key={x}>{String(row[x])}</td>)}</tr>)}</tbody></table><p className="muted">Showing 10 of {data.total_rows.toLocaleString()} rows</p></div>}
+function Dashboard(){const summary=useResource(dashboardApi.summary), matrices=useResource(dashboardApi.matrices), importance=useResource(dashboardApi.importance), preview=useResource(dashboardApi.preview), perf=useResource(dashboardApi.performance); return <Page title="Model performance, made legible" subtitle="All dashboard figures are read from the existing repository data files."><MotionCard className="tableau"><div><p className="eyebrow">TABLEAU BUSINESS DASHBOARD</p><h2>Open the interactive business view</h2></div>{summary.data?<a className="button" href={summary.data.tableau_url} target="_blank" rel="noreferrer">Open Tableau Dashboard</a>:<SectionState state={summary}/>}</MotionCard><h2>Model performance</h2><SectionState state={matrices}/>{matrices.data&&<div className="matrix-grid">{[["logistic","Logistic Regression"],["random_forest","Random Forest"],["deep_learning","Deep Learning"]].map(([key,name])=><MotionCard key={key}><h3>{name}</h3><Matrix rows={matrices.data[key]}/></MotionCard>)}</div>}<div className="split"><MotionCard><h2>Feature importance</h2><SectionState state={importance}/>{importance.data&&<Importance items={importance.data.features.slice(0,10)}/>}</MotionCard><MotionCard><h2>Model comparison</h2><SectionState state={perf}/>{perf.data&&<Comparison items={perf.data.models}/>}</MotionCard></div><MotionCard><h2>Dataset preview</h2><SectionState state={preview}/>{preview.data&&<DataTable data={preview.data}/>}</MotionCard></Page>}
+function Prediction(){const [values,setValues]=useState(initial),[customerID,setCustomerID]=useState(""),[model,setModel]=useState("random_forest"),[result,setResult]=useState(null),[error,setError]=useState(""),[loading,setLoading]=useState(false); const update=(k,v)=>setValues(s=>({...s,[k]:v})); async function submit(e){e.preventDefault();setLoading(true);setError("");setResult(null);try{setResult(await predictionApi.predict(model,{customerID,...values}));}catch(err){setError(err.message)}finally{setLoading(false)}} return <Page title="Predict churn risk" subtitle="Every input is validated by the existing model API before a prediction is made."><div className="prediction-layout"><form className="form card" onSubmit={submit}><section><h2>Customer ID</h2><label>Customer ID<input required value={customerID} onChange={e=>setCustomerID(e.target.value)} placeholder="e.g. 7590-VHVEG"/></label></section>{groups.map(([name,fields])=><section key={name}><h2>{name}</h2><div className="form-grid">{fields.map(field=><label key={field}>{label(field)}{options[field]?<select value={values[field]} onChange={e=>update(field,field==="SeniorCitizen"?Number(e.target.value):e.target.value)}>{options[field].map(x=><option key={x} value={x}>{field==="SeniorCitizen"?(x?"Yes":"No"):x}</option>)}</select>:<input required type="number" min={field==="tenure"?0:field==="MonthlyCharges"?18.25:18.8} max={field==="tenure"?72:field==="MonthlyCharges"?118.75:8684.8} step={field==="tenure"?1:.01} value={values[field]} onChange={e=>update(field,Number(e.target.value))}/>}</label>)}</div></section>)}<section><h2>Model selection</h2><div className="radios">{["random_forest","logistic","deep_learning"].map(x=><label key={x}><input type="radio" checked={model===x} onChange={()=>setModel(x)}/>{label(x)}</label>)}</div><button className="button" disabled={loading}>{loading?"Calculating…":"Predict churn risk"}</button></section></form><aside>{error&&<div className="state error">{error}</div>}{result&&<MotionCard className="result"><p>CHURN RISK</p><RiskBadge value={result.churn_risk}/><strong>{(result.probability*100).toFixed(2)}%</strong><p>{result.prediction?"Will churn":"Will not churn"}</p><p className="muted">{label(result.model_used)}</p></MotionCard>}</aside></div><PredictionHistory/></Page>}
+function Analytics(){const summary=useResource(analyticsApi.summary),risk=useResource(analyticsApi.riskDistribution),comparison=useResource(analyticsApi.comparison),importance=useResource(analyticsApi.importance);const s=summary.data;return <Page title="Business analytics" subtitle="Training-set analytics are explicitly separate from live prediction risk bands."><div className="kpis"><Kpi label="Customers analyzed" value={s?.customers_analyzed} state={summary}/><Kpi label="High-risk customers" value={s?.high_risk_customers} state={summary}/><Kpi label="Average churn probability" value={s?`${s.average_churn_probability.toFixed(1)}%`:null} state={summary}/></div>{s&&<p className="notice">{s.risk_label_system}</p>}<div className="split"><MotionCard><h2>Risk distribution</h2><SectionState state={risk}/>{risk.data&&<ResponsiveContainer width="100%" height={300}><BarChart data={risk.data.items}><XAxis dataKey="risk_level"/><YAxis/><Tooltip/><Bar dataKey="count" radius={[4,4,0,0]}>{risk.data.items.map((x,i)=><Cell key={x.risk_level} fill={["#76a77a","#d3a153","#bd6666"][i]}/>)}</Bar></BarChart></ResponsiveContainer>}</MotionCard><MotionCard><h2>Model comparison</h2><SectionState state={comparison}/>{comparison.data&&<Comparison items={comparison.data.models}/>}</MotionCard></div><MotionCard><h2>Top drivers of churn</h2><SectionState state={importance}/>{importance.data&&<Importance items={importance.data.features.slice(0,10)}/>}</MotionCard><MotionCard><h2>Action plan</h2><ul><li>Prioritize outreach to high-risk customers before contract renewal.</li><li>Use tenure, monthly charges, and contract type to target retention campaigns.</li><li>Compare Logistic Regression and Random Forest before selecting a production model.</li><li>Use new prediction history to monitor churn trends over time.</li></ul></MotionCard></Page>}
+export function App(){return <Layout/>}
