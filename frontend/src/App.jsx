@@ -26,6 +26,7 @@ const sections = [
 const label = (name) => name.replace(/([A-Z])/g, " $1").trim().replace("Senior Citizen", "Senior citizen").replace("Streaming T V", "Streaming TV");
 
 export function App() {
+  const [customerID, setCustomerID] = useState("");
   const [values, setValues] = useState(initial);
   const [model, setModel] = useState("random_forest");
   const [result, setResult] = useState(null);
@@ -42,7 +43,7 @@ export function App() {
     }
     try {
       const response = await fetch(`${API_URL.replace(/\/$/, "")}/api/v1/predictions/${model}`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values)
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerID, ...values })
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.detail?.[0]?.msg || body.detail || "Prediction failed.");
@@ -53,6 +54,9 @@ export function App() {
   return <main className="shell">
     <header><p className="eyebrow">CUSTOMER RETENTION</p><h1>Churn prediction</h1><p>Provide the complete customer profile to score churn risk.</p></header>
     <form onSubmit={submit}>
+      <section className="form-section customer-id-section" key="customer-id"><h2>Customer ID</h2>
+        <label>Customer ID<input required id="customerID" type="text" placeholder="e.g. 7590-VHVEG" value={customerID} onChange={(e) => setCustomerID(e.target.value)} /></label>
+      </section>
       {sections.map(([title, fields]) => <section className="form-section" key={title}><h2>{title}</h2><div className="field-grid">
         {fields.map((field) => <label key={field}>{label(field)}
           {options[field] ? <select value={values[field]} onChange={(e) => update(field, field === "SeniorCitizen" ? Number(e.target.value) : e.target.value)}>{options[field].map((value) => <option key={value} value={value}>{field === "SeniorCitizen" ? (value ? "Yes" : "No") : value}</option>)}</select>

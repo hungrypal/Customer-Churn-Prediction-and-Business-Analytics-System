@@ -6,8 +6,16 @@ from pydantic import BaseModel, Field
 
 
 class PredictionRequest(BaseModel):
-    """The 19 raw features used to train every saved churn pipeline."""
+    """Customer identifier + the 19 raw features for the churn pipelines.
 
+    ``customerID`` is an identifier used for history/tracking only.
+    It is **never** passed into the sklearn pipeline.
+    """
+
+    # ---- identifier (not an ML feature) ----
+    customerID: str = Field(min_length=1)
+
+    # ---- ML features (19) ----
     gender: Literal["Female", "Male"]
     SeniorCitizen: Literal[0, 1]
     Partner: Literal["No", "Yes"]

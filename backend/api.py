@@ -64,17 +64,23 @@ def create_prediction(
     if model_type not in {"logistic", "random_forest", "deep_learning"}:
         raise HTTPException(status_code=404, detail="Unknown model type")
 
-    result = predictor.predict(request.model_dump(), model_type)
+    # Separate the identifier from the ML features.
+    customer_id = request.customerID
+    ml_features = {
+        k: v for k, v in request.model_dump().items() if k != "customerID"
+    }
+
+    result = predictor.predict(ml_features, model_type)
     if "error" in result:
         raise HTTPException(status_code=503, detail=result["error"])
     try:
         database.save_prediction(
-            customer_id=None,
+            customer_id=customer_id,
             model_used=result["model_used"],
             prediction=result["prediction"],
             probability=result["probability"],
             risk_level=result["churn_risk"],
-            features=request.model_dump(),
+            features=ml_features,
         )
     except Exception:
         raise HTTPException(
